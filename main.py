@@ -2,14 +2,15 @@
 """
 小红书关注列表迁移工具 - 主脚本
 
-功能：整合导出、批量关注、取消关注功能
+功能：整合导出、批量关注功能
 使用：python main.py <command> [options]
 
 命令：
   export    导出关注列表
   follow    批量关注
-  unfollow  取消关注
-  help      显示帮助
+  unfollow  取消关注（可选，默认不使用）
+
+注意：默认只在新账号上关注，不取消老账号的关注
 """
 
 import argparse
@@ -59,9 +60,16 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 使用示例：
+  # 1. 导出老账号关注列表
   python main.py export --account old_account
+  
+  # 2. 批量关注到新账号
   python main.py follow --account new_account --file data/following_old_account_*.csv
+  
+  # 3. (可选) 取消老账号关注 - 默认不执行此步骤
   python main.py unfollow --account old_account --file data/following_old_account_*.csv
+
+注意：默认只在新账号上关注，不取消老账号的关注
         """
     )
     
@@ -80,8 +88,8 @@ def main():
     follow_parser.add_argument("--delay", "-d", type=int, default=10, help="批次间延迟（秒）")
     follow_parser.add_argument("--output", "-o", default="data", help="输出目录")
     
-    # unfollow命令
-    unfollow_parser = subparsers.add_parser("unfollow", help="取消关注")
+    # unfollow命令 (可选，默认不使用)
+    unfollow_parser = subparsers.add_parser("unfollow", help="取消关注（可选，默认不使用）")
     unfollow_parser.add_argument("--account", "-a", required=True, help="账号名称")
     unfollow_parser.add_argument("--file", "-f", required=True, help="CSV文件路径")
     unfollow_parser.add_argument("--batch-size", "-b", type=int, default=50, help="每批取消数量")

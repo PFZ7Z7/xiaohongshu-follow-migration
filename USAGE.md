@@ -34,12 +34,7 @@ python scripts/batch_follow.py --account new_account --file data/following_old_a
 # --delay 10       批次间延迟10秒
 ```
 
-### 4. 取消旧账号关注
-
-```bash
-# 确认新账号已关注完成后，取消旧账号关注
-python scripts/unfollow.py --account old_account --file data/following_old_account_*.csv --batch-size 50 --delay 10
-```
+**注意：老账号不会取消关注，仅在新账号上关注。**
 
 ---
 
@@ -62,15 +57,7 @@ python scripts/unfollow.py --account old_account --file data/following_old_accou
 | `--delay` / `-d` | 批次间延迟（秒） | `--delay 10` |
 | `--output` / `-o` | 输出目录 | `--output data` |
 
-### unfollow.py
-
-| 参数 | 说明 | 示例 |
-|------|------|------|
-| `--account` / `-a` | 账号名称 | `--account old_account` |
-| `--file` / `-f` | CSV文件路径 | `--file data/following_old.csv` |
-| `--batch-size` / `-b` | 每批取消数量 | `--batch-size 50` |
-| `--delay` / `-d` | 批次间延迟（秒） | `--delay 10` |
-| `--output` / `-o` | 输出目录 | `--output data` |
+**注意：`unfollow.py` 脚本仍保留在项目中，但默认不使用。如需取消老账号关注，可手动运行。**
 
 ---
 
@@ -189,7 +176,12 @@ user_id,username,follow_time
 
 ## 更新日志
 
-- 2026-04-19: 初版创建
+- 2026-04-19: v1.1.0
+  - **修改为只在新账号上关注，不取消老账号的关注**
+  - 导出关注列表
+  - 批量关注
+  - unfollow.py 脚本保留但默认不使用
+- 2026-04-19: v1.0.0 初版创建
   - 导出关注列表
   - 批量关注
   - 取消关注

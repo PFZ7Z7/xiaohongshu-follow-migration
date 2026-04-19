@@ -8,6 +8,7 @@
 
 - 账号A有900+关注，准备停用
 - 希望将这些关注迁移到账号B
+- **只在新账号上关注，不取消老账号的关注**
 - 避免手动逐个关注的繁琐操作
 
 ## 实现方案
@@ -20,7 +21,7 @@
 **操作步骤：**
 1. 登录账号A，导出关注列表为CSV
 2. 登录账号B，批量关注这些用户
-3. 账号A取消关注
+3. ~~账号A取消关注~~ **（已移除）**
 
 **风控处理：**
 - 每次关注间隔5-10秒
@@ -63,8 +64,6 @@ python scripts/unfollow.py --account old_account --file following.csv
 python scripts/export_following.py --account old_account
 
 # 2. 手动在新账号关注CSV中的用户
-# 3. 确认关注完成后，取消旧账号关注
-python scripts/unfollow.py --account old_account --file following.csv
 ```
 
 ---

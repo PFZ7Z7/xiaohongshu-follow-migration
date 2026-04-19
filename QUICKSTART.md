@@ -26,12 +26,6 @@ python main.py export --account old_account
 python main.py follow --account new_account --file data/following_old_account_*.csv --batch-size 50 --delay 10
 ```
 
-## 4. 取消旧账号关注
-
-```bash
-python main.py unfollow --account old_account --file data/following_old_account_*.csv --batch-size 50 --delay 10
-```
-
 ---
 
 ## 注意事项
@@ -39,5 +33,6 @@ python main.py unfollow --account old_account --file data/following_old_account_
 - **每天关注不超过100人**
 - **出现验证码时暂停操作**
 - **操作完成后删除CSV文件**
+- **老账号不会取消关注，仅在新账号上关注**
 
 详细说明请查看 [USAGE.md](USAGE.md)
