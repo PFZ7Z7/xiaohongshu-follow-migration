@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-小红书关注列表导出工具 v2.0
+小红书关注列表导出工具 v2.1
 
 改进：
 - 修复硬编码URL问题
@@ -9,6 +9,7 @@
 - 改进选择器稳定性
 - 集成进度显示
 - 添加错误处理和重试
+- v2.1: 添加调试模式、截图功能、更详细的选择器检测
 """
 
 import argparse
@@ -98,15 +99,57 @@ class XiaohongshuExporter:
         ]
     }
     
-    def __init__(self, username: str, output_dir: Path, logger: logging.Logger):
+    def __init__(self, username: str, output_dir: Path, logger: logging.Logger, debug: bool = False):
         self.username = username
         self.output_dir = output_dir
         self.logger = logger
+        self.debug = debug
         self.seen_user_ids: Set[str] = set()
         self.following_list: List[Dict] = []
         self.browser: Optional[Browser] = None
         self.context: Optional[BrowserContext] = None
         self.page: Optional[Page] = None
+    
+    def save_screenshot(self, name: str) -> None:
+        """保存截图（调试模式）"""
+        if self.debug:
+            screenshot_path = self.output_dir / f"debug_{name}_{int(time.time())}.png"
+            try:
+                self.page.screenshot(path=str(screenshot_path))
+                self.logger.info(f"📸 截图已保存: {screenshot_path}")
+            except Exception as e:
+                self.logger.error(f"截图失败: {e}")
+    
+    def debug_selectors(self) -> None:
+        """调试选择器，检查哪些能匹配到元素"""
+        if not self.debug:
+            return
+        
+        self.logger.info("🔍 开始调试选择器...")
+        
+        # 检查用户卡片选择器
+        for selector in self.SELECTORS["user_card"]:
+            try:
+                count = self.page.locator(selector).count()
+                if count > 0:
+                    self.logger.info(f"  ✅ {selector}: 找到 {count} 个元素")
+                else:
+                    self.logger.info(f"  ❌ {selector}: 未找到")
+            except Exception as e:
+                self.logger.info(f"  ⚠️ {selector}: 错误 - {e}")
+        
+        # 打印页面HTML结构（部分）
+        try:
+            html = self.page.content()
+            self.logger.info(f"📄 页面HTML长度: {len(html)} 字符")
+            
+            # 保存完整HTML到文件
+            html_file = self.output_dir / f"debug_page_{int(time.time())}.html"
+            with open(html_file, "w", encoding="utf-8") as f:
+                f.write(html)
+            self.logger.info(f"📄 页面HTML已保存: {html_file}")
+        except Exception as e:
+            self.logger.error(f"获取页面HTML失败: {e}")
     
     def find_element(self, selectors: List[str], timeout: int = 5000) -> Optional[any]:
         """尝试多个选择器，返回第一个匹配的元素"""
@@ -236,10 +279,13 @@ class XiaohongshuExporter:
         user_id = self.get_user_id_from_page()
         
         if user_id:
+            self.logger.info(f"获取到用户ID: {user_id}")
             # 访问关注页面
             following_url = f"https://www.xiaohongshu.com/user/profile/{user_id}?tab=following"
+            self.logger.info(f"访问关注页面: {following_url}")
             self.page.goto(following_url, wait_until="networkidle")
         else:
+            self.logger.warning("无法获取用户ID，尝试通过首页导航")
             # 方法2：通过首页导航
             self.page.goto("https://www.xiaohongshu.com/explore", wait_until="networkidle")
             self.smart_delay(2)
@@ -249,8 +295,19 @@ class XiaohongshuExporter:
         
         self.smart_delay(3)
         
-        # 检查是否成功进入关注页面
-        # 这里可以添加验证逻辑
+        # 调试：截图和检查选择器
+        self.save_screenshot("following_page")
+        self.debug_selectors()
+        
+        # 验证是否成功进入关注页面
+        # 检查URL是否包含following
+        current_url = self.page.url
+        self.logger.info(f"当前页面URL: {current_url}")
+        
+        if "following" not in current_url and "tab=following" not in current_url:
+            self.logger.warning("可能未成功进入关注页面")
+            self.logger.info("请手动在浏览器中点击'关注'标签，然后按回车继续...")
+            input()
         
         return True
     
@@ -329,7 +386,12 @@ class XiaohongshuExporter:
     def _scroll_loop(self, max_count: int, last_count: int, no_change_count: int, 
                      max_no_change: int, progress) -> None:
         """滚动循环"""
-        while len(self.following_list) < max_count:
+        scroll_count = 0
+        max_scrolls = 100  # 最大滚动次数限制
+        
+        while len(self.following_list) < max_count and scroll_count < max_scrolls:
+            scroll_count += 1
+            
             # 检查验证码
             if self.check_captcha():
                 self.logger.warning("⚠️ 检测到验证码，暂停操作")
@@ -337,10 +399,12 @@ class XiaohongshuExporter:
                 continue
             
             # 提取当前页面的用户
+            found_users = False
             for selector in self.SELECTORS["user_card"]:
                 try:
                     user_elements = self.page.locator(selector).all()
                     if user_elements:
+                        self.logger.debug(f"使用选择器 '{selector}' 找到 {len(user_elements)} 个元素")
                         for elem in user_elements:
                             user_info = self.extract_user_info(elem)
                             if user_info:
@@ -349,9 +413,15 @@ class XiaohongshuExporter:
                                 if user_id and user_id not in self.seen_user_ids:
                                     self.seen_user_ids.add(user_id)
                                     self.following_list.append(user_info)
+                                    found_users = True
                         break
-                except:
+                except Exception as e:
+                    self.logger.debug(f"选择器 '{selector}' 失败: {e}")
                     continue
+            
+            if not found_users and scroll_count == 1:
+                self.logger.warning("⚠️ 第一次滚动未找到任何用户，可能选择器需要更新")
+                self.save_screenshot(f"no_users_found_{scroll_count}")
             
             current_count = len(self.following_list)
             
@@ -378,6 +448,9 @@ class XiaohongshuExporter:
             # 再次滚动（有些页面需要多次触发）
             self.page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
             self.smart_delay(1)
+        
+        if scroll_count >= max_scrolls:
+            self.logger.warning(f"达到最大滚动次数 {max_scrolls}，停止加载")
     
     def save_results(self) -> Path:
         """保存结果"""
@@ -453,6 +526,7 @@ def main():
     )
     parser.add_argument("--account", "-a", required=True, help="账号名称（用于标识）")
     parser.add_argument("--output", "-o", default="data", help="输出目录")
+    parser.add_argument("--debug", "-d", action="store_true", help="启用调试模式（截图、详细日志）")
     
     args = parser.parse_args()
     
@@ -465,7 +539,7 @@ def main():
     logger = setup_logging(log_file)
     
     # 运行导出
-    exporter = XiaohongshuExporter(args.account, output_dir, logger)
+    exporter = XiaohongshuExporter(args.account, output_dir, logger, debug=args.debug)
     csv_file = exporter.run()
     
     if csv_file:

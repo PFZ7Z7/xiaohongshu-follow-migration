@@ -26,6 +26,8 @@ def run_export(args):
     cmd = f"python {script_path} --account {args.account}"
     if args.output:
         cmd += f" --output {args.output}"
+    if args.debug:
+        cmd += " --debug"
     print(f"执行: {cmd}\n")
     os.system(cmd)
 
@@ -97,6 +99,7 @@ def main():
     export_parser = subparsers.add_parser("export", help="导出关注列表")
     export_parser.add_argument("--account", "-a", required=True, help="账号名称")
     export_parser.add_argument("--output", "-o", default="data", help="输出目录")
+    export_parser.add_argument("--debug", "-d", action="store_true", help="启用调试模式（截图、详细日志）")
     
     # follow命令
     follow_parser = subparsers.add_parser("follow", help="批量关注")
